@@ -1,0 +1,346 @@
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  NativeEventEmitter,
+  NativeModules,
+  StyleSheet,
+  View,
+} from "react-native";
+import { router } from "expo-router";
+import * as Location from "expo-location";
+import BleManager, {
+  BleScanMode,
+  BleScanMatchMode,
+  Peripheral,
+  BleScanCallbackType,
+} from "react-native-ble-manager";
+
+import { colors } from "@/src/utils/colors";
+import { ThemedText } from "@/src/components/ThemedText";
+import { ThemedView } from "@/src/components/ThemedView";
+import { AppBar, AppButton } from "@/src/components";
+import { useDispatch, useSelector } from "react-redux";
+import { PRODUCT_STATUS, SBDevice } from "@/src/utils/types";
+import { selectProduct, setProduct } from "@/src/store/TagSlice";
+import Toast from "react-native-toast-message";
+import { BLE_ERROR_MESSAGES } from "@/src/utils/constants";
+import { useFetch } from "@/src/hooks/useFetch";
+import { selectAuth, selectUserLogged } from "@/src/store/AuthSlice";
+import { requestPermissions } from "@/src/hooks/useBLE";
+import { environment } from "../../environments/environment";
+
+const { width, height } = Dimensions.get("window");
+const SECONDS_TO_SCAN_FOR = 10;
+
+export default function FindTagScreen() {
+  const fetch = useFetch();
+  const dispatch = useDispatch();
+
+  const BleManagerModule = NativeModules.BleManager;
+  const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
+
+  const auth = useSelector(selectAuth);
+  const user = useSelector(selectUserLogged);
+  const product = useSelector(selectProduct);
+
+  const [isScanning, setIsScanning] = useState(true);
+  const [bleError, setBleError] = useState<{ errorCode: string; message: string } | null>(null);
+  const [peripherals, setPeripherals] = useState<Map<string, Peripheral>>(new Map());
+
+  const notifyProductLostWereFinded = async (productInfo: {
+    userEmail: string;
+    userName: string;
+  }) => {
+    let location = await Location.getCurrentPositionAsync({});
+    const linkLocation = `https://www.google.com/maps?q=${location?.coords.latitude},${location?.coords.longitude}&z=22`;
+    try {
+      const body = {
+        asunto: "Hola!, te estamos buscando",
+        correo: productInfo.userEmail,
+        nombre: productInfo.userName,
+        tipoenvio: environment.company,
+        mensaje: "Alguien realizó una lectura de Ble",
+        link: linkLocation,
+      };
+
+      const options = {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth?.accessToken}`,
+          body: JSON.stringify(body),
+        },
+      };
+      await fetch(`/sendmail`, options);
+    } catch (error: unknown) {
+      const errorMessage = error as Error;
+      Toast.show({
+        text1: errorMessage.message,
+        type: "error",
+      });
+    }
+  };
+
+  const consultProductBySerial = async (serial: string) => {
+    try {
+      const options = {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth?.accessToken}`,
+        },
+      };
+      const response: {
+        ok: boolean;
+        json: () => Promise<{
+          success: boolean;
+          data: { estado: string };
+          estado: number;
+        }>;
+      } = await fetch(`/productbyqrserial/${serial}`, options);
+
+      const responsePayload = await response.json();
+      const responseData = responsePayload.data;
+      if (response.ok) {
+        if (Array.isArray(responseData)) {
+          return responseData[0];
+        }
+      }
+    } catch (error: unknown) {
+      const errorMessage = error as Error;
+      Toast.show({
+        text1: errorMessage.message,
+        type: "error",
+      });
+    }
+  };
+
+  const startScan = async () => {
+    try {
+      await BleManager.enableBluetooth()
+        .then(() => {
+          setBleError(null);
+          setPeripherals(new Map());
+          setIsScanning(true);
+          console.debug("[startScan] starting scan...");
+          BleManager.scan([], SECONDS_TO_SCAN_FOR, true, {
+            matchMode: BleScanMatchMode.Sticky,
+            scanMode: BleScanMode.LowLatency,
+            callbackType: BleScanCallbackType.AllMatches,
+          })
+            .then(() => {
+              console.debug("[startScan] scan promise returned successfully.");
+            })
+            .catch((err: any) => {
+              console.error("[startScan] ble scan returned in error", err);
+            });
+        })
+        .catch((error) => {
+          setBleError({ errorCode: "001", message: "El bluetooth no pudo ser activado" });
+        });
+    } catch (error) {
+      setBleError({ errorCode: "001", message: "El bluetooth no pudo ser activado" });
+    }
+  };
+
+  const handleDiscoverPeripheral = (peripheral: Peripheral) => {
+    // console.log("[handleDiscoverPeripheral] new BLE peripheral");
+    if (!peripheral.name) {
+      peripheral.name = "NO NAME";
+    }
+    setPeripherals((map) => {
+      return new Map(map.set(peripheral.id.replaceAll(":", ""), peripheral));
+    });
+  };
+
+  /*  console.log(peripherals)
+   */
+  const handleStopScan = () => {
+    console.debug("[handleStopScan] scan is stopped.");
+    setIsScanning(false);
+  };
+
+  useEffect(() => {
+    try {
+      BleManager.start({ showAlert: false })
+        .then(() => console.debug("BleManager started."))
+        .catch((error: any) => console.error("BeManager could not be started.", error));
+    } catch (error) {
+      console.log("unexpected error starting BleManager.", error);
+      return;
+    }
+
+    const listeners = [
+      bleManagerEmitter.addListener("BleManagerDiscoverPeripheral", handleDiscoverPeripheral),
+      bleManagerEmitter.addListener("BleManagerStopScan", handleStopScan),
+    ];
+    const startScanning = async () => {
+      const permissionStatus = await requestPermissions();
+      if (permissionStatus) {
+        startScan();
+      }
+    };
+
+    startScanning().catch((error) => {
+      console.error(error);
+    });
+
+    return () => {
+      console.debug("[app] main component unmounting. Removing listeners...");
+      for (const listener of listeners) {
+        listener.remove();
+      }
+      BleManager.stopScan()
+        .then(() => {
+          console.debug('Scanning stopped successfully');
+        })
+        .catch((error) => {
+          console.error('Failed to stop scanning:', error);
+        });
+      };
+  }, []);
+
+  useEffect(() => {
+    const handleStopScanning = async () => {
+      if (isScanning) {
+        return;
+      }
+      if (product) {
+        if (peripherals.size > 0) {
+          const findedSerials: string[] = [];
+          const device = peripherals.get(product?.serial as string);
+
+          peripherals.forEach((peripheral) => {
+            if (peripheral.id.replaceAll(":", "") !== product.serial)
+              findedSerials.push(peripheral.id.replaceAll(":", ""));
+          });
+
+          for await (const serial of findedSerials) {
+            const product = await consultProductBySerial(serial);
+            if (
+              product &&
+              product.tipo_estado_id === PRODUCT_STATUS.LOST &&
+              product.email !== user?.email
+            ) {
+              await notifyProductLostWereFinded({
+                userEmail: product.email,
+                userName: product.nombre,
+              });
+            }
+          }
+
+          if (device) {
+            Toast.show({
+              text1: "Maleta encontrada",
+              text2: "La maleta se encuentra en las proximidades",
+              type: "info",
+            });
+            router.replace("/screens/tag/productLocation");
+            return;
+          }
+        }
+        Toast.show({
+          text1: "Maleta no encontrada",
+          text2: "La maleta no se encuentra en las proximidades",
+          type: "error",
+        });
+        router.replace("/screens/tag/productLost");
+      }
+    };
+
+    handleStopScanning().catch((error) => {
+      console.error(error);
+    });
+  }, [peripherals, isScanning]);
+
+  if (bleError) {
+    return (
+      <ThemedView style={{ flex: 1 }}>
+        <AppBar
+          title="Buscando tu Maleta"
+          onBackPress={async () => {
+            router.back();
+          }}
+        />
+        <View style={styles.processingContainer}>
+          <Image
+            source={require("@/src/assets/images/lost-suitcase.png")}
+            style={styles.imageStyle}
+          />
+          <ThemedText style={styles.modalInstructions}>
+            {BLE_ERROR_MESSAGES[bleError.errorCode as keyof typeof BLE_ERROR_MESSAGES]}
+          </ThemedText>
+          <View style={styles.nextButtonContainer}>
+            <AppButton
+              title="Intentar de nuevo"
+              style={{ backgroundColor: colors.secondary }}
+              labelStyle={{ color: colors.primary }}
+              onPress={startScan}
+            />
+            <AppButton
+              title={"Ir a la página principal"}
+              onPress={() => {
+                dispatch(setProduct(undefined));
+                router.replace("/screens/tag/(tabs)/");
+              }}
+              style={{ backgroundColor: "transparent", marginTop: height * 0.02 }}
+              labelStyle={{ color: colors.primary }}
+            />
+          </View>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  return (
+    <ThemedView style={{ flex: 1 }}>
+      <AppBar
+        title="Buscando tu Maleta"
+        onBackPress={async () => {
+          router.back();
+        }}
+      />
+      <View style={styles.processingContainer}>
+        <Image
+          source={require("@/src/assets/images/suitcase-with-background-2.png")}
+          style={styles.imageStyle}
+        />
+        <ThemedText style={styles.modalInstructions}>
+          Unos segundos, estamos localizando tu maleta en las proximidades...
+        </ThemedText>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  modalInstructions: {
+    color: colors.primary,
+    fontSize: 16,
+    textAlign: "center",
+    marginTop: -100,
+    fontWeight: "bold",
+  },
+  processingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: width * 0.15,
+    paddingBottom: 100,
+  },
+  imageStyle: {
+    width: width,
+    borderRadius: 100,
+  },
+  nextButtonContainer: {
+    marginTop: height * 0.04,
+    paddingBottom: height * 0.05,
+    gap: 10,
+    width: "100%",
+  },
+});

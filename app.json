@@ -1,0 +1,97 @@
+{
+  "expo": {
+    "name": "BagTag",
+    "slug": "bagtag",
+    "version": "1.0.2",
+    "orientation": "portrait",
+    "icon": "./src/assets/images/icon.png",
+    "scheme": "bagtag",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./src/assets/images/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#F7FEFF"
+    },
+    "androidStatusBar": {
+      "translucent": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bagtag.bagtag",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app requires access to your location to scan for Bluetooth devices.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "requireFullScreen": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyBrL0UfJAIpCiCFUtOsRSR_qddZeH5rkQM"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/adaptive-icon.png",
+        "backgroundColor": "#F7FEFF",
+        "resizeMode": "cover"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "package": "com.bagtag.bagtag",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBrL0UfJAIpCiCFUtOsRSR_qddZeH5rkQM"
+        }
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./src/assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
+        }
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": true,
+          "modes": [
+            "peripheral",
+            "central"
+          ],
+          "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to connect to bluetooth devices"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "5d11df06-70e8-417a-a151-8c52b53ec971"
+      }
+    },
+    "owner": "afuggini.bagtag"
+  }
+}
