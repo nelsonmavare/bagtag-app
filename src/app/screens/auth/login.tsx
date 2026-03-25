@@ -52,7 +52,7 @@ export default function LoginScreen() {
         password: password,
         company: environment.company.toString(),
       };
-      const response = await fetch(`/api/v1/auth/login`, {
+      const response = await fetch(`/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -60,17 +60,16 @@ export default function LoginScreen() {
         body: JSON.stringify(body),
       });
       const responseData = await response.json();
-      console.log(responseData);
 
       if (response.ok) {
-        if (responseData.estado === "200") {
-          const auth = authTransform(responseData);
+        if (responseData.estado === 200) {
+          const auth = authTransform(responseData.data);
           Toast.show({
             text1: "Inicio de sesión exitoso",
             type: "success",
           });
-          router.replace("/screens/tag/(tabs)");
           dispatch(setAuth(auth));
+          router.replace("/screens/tag/(tabs)");
         } else {
           Toast.show({
             text1: "Correo electrónico o contraseña incorrectos",

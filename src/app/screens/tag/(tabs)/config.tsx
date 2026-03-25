@@ -46,6 +46,7 @@ export default function ConfigScreen() {
   const user = useSelector(selectUserLogged);
 
   const router = useRouter();
+  console.log("user", user);
 
   return (
     <View style={{ flex: 1 }}>

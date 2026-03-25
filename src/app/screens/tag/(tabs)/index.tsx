@@ -33,7 +33,7 @@ import {
 import { selectProduct, selectProducts, setProduct, setProducts } from "@/src/store/TagSlice";
 import useReport from "@/src/hooks/useReport";
 
-const { width, height, fontScale } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 export default function HomeScreen() {
   const fetch = useFetch();
@@ -78,7 +78,7 @@ export default function HomeScreen() {
           success: boolean;
           data: BackendUser[];
         }>;
-      } = await fetch(`/userbyid/${auth?.userId}`, options);
+      } = await fetch(`/user/${auth?.userId}`, options);
 
       const responsePayload = await response.json();
       const responseData = responsePayload.data;

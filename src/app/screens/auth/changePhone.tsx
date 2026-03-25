@@ -82,7 +82,7 @@ export default function ChangePhoneScreen() {
           success: boolean;
           data: BackendUser;
         }>;
-      } = await fetch(`/user`, options);
+      } = await fetch(`/user/${user?.id}`, options);
 
       const responsePayload = await response.json();
       const responseData = responsePayload.data;

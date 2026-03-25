@@ -9,7 +9,7 @@ export function useFetch(): (uri: string, options: RequestInit | undefined) => P
 	return async (uri: string, options: RequestInit | undefined) => {
 		let response: Response;
 		try {
-			response = await fetch(`${BACKEND_URL}${uri}`, options);
+			response = await fetch(`${BACKEND_URL}/api/v1${uri}`, options);
 		} catch (error) {
 			throw error;
 		}
