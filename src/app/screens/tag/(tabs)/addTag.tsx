@@ -159,7 +159,7 @@ export default function LoginScreen() {
           data: BackendProduct;
           estado: number;
         }>;
-      } = await fetch(`/produc`, options);
+      } = await fetch(`/products`, options);
 
       const responsePayload = await response.json();
       const responseData = responsePayload.data;

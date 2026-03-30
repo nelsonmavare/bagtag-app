@@ -125,7 +125,7 @@ export default function HomeScreen() {
           success: boolean;
           data: BackendProduct[];
         }>;
-      } = await fetch(`/producbyuser/${auth?.userId}`, options);
+      } = await fetch(`/products/user/${auth?.userId}`, options);
 
       const responsePayload = await response.json();
       const responseData = responsePayload.data;
@@ -160,7 +160,7 @@ export default function HomeScreen() {
           method: "DELETE",
           headers: headers,
         };
-        await fetch(`/produc/${productId}`, options);
+        await fetch(`/products/${productId}`, options);
       } catch (error: unknown) {
         const errorMessage = error as Error;
         Toast.show({

@@ -5,7 +5,6 @@ import { ThemedText } from "./ThemedText";
 import { colors } from "../utils/colors";
 import { Product } from "../utils/types";
 import { useMemo } from "react";
-import { AppButton } from "./Button";
 
 const { height, width, fontScale } = Dimensions.get("window");
 

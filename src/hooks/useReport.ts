@@ -8,26 +8,53 @@ import { PRODUCT_STATUS } from "../utils/types";
 import { useFetch } from "./useFetch";
 import { selectAuth } from "../store/AuthSlice";
 import { setRefreshProducts } from "../store/AppSlice";
+import { Peripheral } from "react-native-ble-manager";
 
-export default function useReport({ setLoading, onSuccess }: { setLoading: (loading: boolean) => void, onSuccess?: () => void }) {
+export default function useReport({
+  setLoading,
+  onSuccess,
+}: {
+  setLoading: (loading: boolean) => void;
+  onSuccess?: () => void;
+}) {
   const fetch = useFetch();
   const dispatch = useDispatch();
   const auth = useSelector(selectAuth);
 
-  const updateProductStatus = async (product: Product | undefined, newStatus: PRODUCT_STATUS, successMessage: string) => {
+  const updateProductStatus = async (
+    product: Product | undefined,
+    newStatus: PRODUCT_STATUS,
+    successMessage: string,
+    rssi?: number,
+    longitude?: number,
+    latitude?: number,
+  ) => {
     if (!product) return;
     setLoading(true);
     try {
-      const body = {
+      const body: {
+        id: number;
+        tipo_estado_id: PRODUCT_STATUS;
+        rssi?: number;
+        longitude?: number;
+        latitude?: number;
+      } = {
         id: product?.id,
         tipo_estado_id: newStatus,
       };
+      if (rssi) {
+        body.rssi = rssi;
+      }
+      if (longitude && latitude) {
+        body.longitude = longitude;
+        body.latitude = latitude;
+      }
 
       const options = {
         method: "PUT",
         headers: {
           Accept: "application/json",
-          "Content-Type": "application/json", 
+          "Content-Type": "application/json",
           Authorization: `Bearer ${auth?.accessToken}`,
         },
         body: JSON.stringify(body),
@@ -39,7 +66,7 @@ export default function useReport({ setLoading, onSuccess }: { setLoading: (load
           data: { estado: string };
           estado: number;
         }>;
-      } = await fetch(`/producbystate`, options);
+      } = await fetch(`/products/state`, options);
 
       const responsePayload = await response.json();
       const responseData = responsePayload.data;
@@ -68,8 +95,22 @@ export default function useReport({ setLoading, onSuccess }: { setLoading: (load
     }
   };
 
-  const onProductLost = (product?: Product) => updateProductStatus(product, PRODUCT_STATUS.LOST, "Maleta perdida");
-  const onProductFound = (product?: Product) => updateProductStatus(product, PRODUCT_STATUS.ACTIVE, "Maleta encontrada");
+  const onProductLost = (product?: Product) =>
+    updateProductStatus(product, PRODUCT_STATUS.LOST, "Maleta perdida");
+  const onProductFound = (
+    product?: Product,
+    peripheral?: Peripheral,
+    longitude?: number,
+    latitude?: number,
+  ) =>
+    updateProductStatus(
+      product,
+      PRODUCT_STATUS.ACTIVE,
+      "Maleta encontrada",
+      peripheral?.rssi,
+      longitude,
+      latitude,
+    );
 
   return {
     onProductLost,

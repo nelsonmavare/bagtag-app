@@ -30,6 +30,7 @@ import { useFetch } from "@/src/hooks/useFetch";
 import { selectAuth, selectUserLogged } from "@/src/store/AuthSlice";
 import { requestPermissions } from "@/src/hooks/useBLE";
 import { environment } from "../../environments/environment";
+import useReport from "@/src/hooks/useReport";
 
 const { width, height } = Dimensions.get("window");
 const SECONDS_TO_SCAN_FOR = 10;
@@ -37,6 +38,7 @@ const SECONDS_TO_SCAN_FOR = 10;
 export default function FindTagScreen() {
   const fetch = useFetch();
   const dispatch = useDispatch();
+  const { onProductFound } = useReport({ setLoading: () => {}, onSuccess: () => {} });
 
   const BleManagerModule = NativeModules.BleManager;
   const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
@@ -84,6 +86,40 @@ export default function FindTagScreen() {
     }
   };
 
+  const onUpdateOtherProductLocation = async (
+    productInfo: {
+      id: string;
+    },
+    peripheral: Peripheral,
+  ) => {
+    let location = await Location.getCurrentPositionAsync({});
+    try {
+      const body = {
+        id: productInfo.id,
+        longitude: location?.coords.longitude,
+        latitude: location?.coords.latitude,
+        rssi: peripheral?.rssi,
+      };
+
+      const options = {
+        method: "PUT",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth?.accessToken}`,
+        },
+        body: JSON.stringify(body),
+      };
+      await fetch(`/products/location`, options);
+    } catch (error: unknown) {
+      const errorMessage = error as Error;
+      Toast.show({
+        text1: errorMessage.message,
+        type: "error",
+      });
+    }
+  };
+
   const consultProductBySerial = async (serial: string) => {
     try {
       const options = {
@@ -101,7 +137,7 @@ export default function FindTagScreen() {
           data: { estado: string };
           estado: number;
         }>;
-      } = await fetch(`/productbyqrserial/${serial}`, options);
+      } = await fetch(`/products/serial/${serial}`, options);
 
       const responsePayload = await response.json();
       const responseData = responsePayload.data;
@@ -148,7 +184,6 @@ export default function FindTagScreen() {
   };
 
   const handleDiscoverPeripheral = (peripheral: Peripheral) => {
-    // console.log("[handleDiscoverPeripheral] new BLE peripheral");
     if (!peripheral.name) {
       peripheral.name = "NO NAME";
     }
@@ -157,14 +192,13 @@ export default function FindTagScreen() {
     });
   };
 
-  /*  console.log(peripherals)
-   */
   const handleStopScan = () => {
     console.debug("[handleStopScan] scan is stopped.");
     setIsScanning(false);
   };
 
   useEffect(() => {
+    setPeripherals(new Map());
     try {
       BleManager.start({ showAlert: false })
         .then(() => console.debug("BleManager started."))
@@ -196,12 +230,12 @@ export default function FindTagScreen() {
       }
       BleManager.stopScan()
         .then(() => {
-          console.debug('Scanning stopped successfully');
+          console.debug("Scanning stopped successfully");
         })
         .catch((error) => {
-          console.error('Failed to stop scanning:', error);
+          console.error("Failed to stop scanning:", error);
         });
-      };
+    };
   }, []);
 
   useEffect(() => {
@@ -209,31 +243,50 @@ export default function FindTagScreen() {
       if (isScanning) {
         return;
       }
+
       if (product) {
         if (peripherals.size > 0) {
           const findedSerials: string[] = [];
+          const discoveredPeripheralsBySerial = new Map<string, Peripheral>();
           const device = peripherals.get(product?.serial as string);
 
           peripherals.forEach((peripheral) => {
-            if (peripheral.id.replaceAll(":", "") !== product.serial)
-              findedSerials.push(peripheral.id.replaceAll(":", ""));
+            const serial = peripheral.id.replaceAll(":", "");
+            discoveredPeripheralsBySerial.set(serial, peripheral);
+
+            if (serial !== product.serial) {
+              findedSerials.push(serial);
+            }
           });
 
+          // TODO: This can be optimized moving the logic to the backend to check the products in the database and update the location of the products that are found.
           for await (const serial of findedSerials) {
             const product = await consultProductBySerial(serial);
-            if (
-              product &&
-              product.tipo_estado_id === PRODUCT_STATUS.LOST &&
-              product.email !== user?.email
-            ) {
-              await notifyProductLostWereFinded({
-                userEmail: product.email,
-                userName: product.nombre,
-              });
+            if (product) {
+              if (product.tipo_estado_id === PRODUCT_STATUS.LOST && product.email !== user?.email) {
+                await notifyProductLostWereFinded({
+                  userEmail: product.email,
+                  userName: product.nombre,
+                });
+              } else {
+                const peripheral = discoveredPeripheralsBySerial.get(product.serial as string);
+                if (peripheral) {
+                  await onUpdateOtherProductLocation(product, peripheral);
+                }
+              }
             }
           }
 
           if (device) {
+            let location = await Location.getCurrentPositionAsync({});
+            const longitude = location?.coords.longitude;
+            const latitude = location?.coords.latitude;
+            await onProductFound(
+              product,
+              discoveredPeripheralsBySerial.get(product.serial as string),
+              longitude,
+              latitude,
+            );
             Toast.show({
               text1: "Maleta encontrada",
               text2: "La maleta se encuentra en las proximidades",
