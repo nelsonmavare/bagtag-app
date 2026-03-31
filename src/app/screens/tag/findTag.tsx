@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -50,6 +50,7 @@ export default function FindTagScreen() {
   const [isScanning, setIsScanning] = useState(true);
   const [bleError, setBleError] = useState<{ errorCode: string; message: string } | null>(null);
   const [peripherals, setPeripherals] = useState<Map<string, Peripheral>>(new Map());
+  const hasHandledScanResultRef = useRef(false);
 
   const notifyProductLostWereFinded = async (productInfo: {
     userEmail: string;
@@ -162,6 +163,7 @@ export default function FindTagScreen() {
           setBleError(null);
           setPeripherals(new Map());
           setIsScanning(true);
+          hasHandledScanResultRef.current = false;
           console.debug("[startScan] starting scan...");
           BleManager.scan([], SECONDS_TO_SCAN_FOR, true, {
             matchMode: BleScanMatchMode.Sticky,
@@ -243,6 +245,10 @@ export default function FindTagScreen() {
       if (isScanning) {
         return;
       }
+      if (hasHandledScanResultRef.current) {
+        return;
+      }
+      hasHandledScanResultRef.current = true;
 
       if (product) {
         if (peripherals.size > 0) {
@@ -281,11 +287,28 @@ export default function FindTagScreen() {
             let location = await Location.getCurrentPositionAsync({});
             const longitude = location?.coords.longitude;
             const latitude = location?.coords.latitude;
+            const lastTimeLocated = new Date().toISOString();
+            const updatedProduct = {
+              ...product,
+              location: JSON.stringify({ lat: latitude, long: longitude }),
+              lastTimeLocated,
+              rssi:
+                discoveredPeripheralsBySerial.get(product.serial as string)?.rssi ??
+                product.rssi ??
+                null,
+            };
+            dispatch(setProduct(updatedProduct));
             await onProductFound(
               product,
               discoveredPeripheralsBySerial.get(product.serial as string),
               longitude,
               latitude,
+            );
+            dispatch(
+              setProduct({
+                ...updatedProduct,
+                lastTimeLocated: new Date().toISOString(),
+              }),
             );
             Toast.show({
               text1: "Maleta encontrada",

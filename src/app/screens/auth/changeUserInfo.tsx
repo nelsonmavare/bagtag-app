@@ -46,6 +46,7 @@ export default function ChangeUserInfoScreen() {
         nombre: name,
         email: user?.email,
         rol: user?.role,
+        idempresa: user?.companyId,
         genero: user?.gender,
         fecha_alta: user?.dateJoined,
         telcel: user?.phoneNumber,
@@ -69,7 +70,7 @@ export default function ChangeUserInfoScreen() {
           success: boolean;
           data: BackendUser;
         }>;
-      } = await fetch(`/user`, options);
+      } = await fetch(`/user/${user?.id}`, options);
 
       const responsePayload = await response.json();
       const responseData = responsePayload.data;

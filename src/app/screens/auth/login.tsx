@@ -50,7 +50,6 @@ export default function LoginScreen() {
       const body = {
         username: email,
         password: password,
-        company: environment.company.toString(),
       };
       const response = await fetch(`/auth/login`, {
         method: "POST",

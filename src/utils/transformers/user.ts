@@ -5,6 +5,7 @@ export interface BackendUser {
   iduser: string;
   nombre: string;
   email: string;
+  idempresa: string;
   rol: string;
   fecha_alta: string; //not used
   estado: string;
@@ -20,6 +21,7 @@ export function userTransform(backendUser: BackendUser): User {
     name: backendUser.nombre,
     email: backendUser.email,
     role: backendUser.rol,
+    companyId: backendUser.idempresa ?? "",
     status: backendUser.estado,
     gender: backendUser.genero,
     phoneNumber: backendUser.telcel,

@@ -16,7 +16,9 @@ export interface BackendProduct {
   fecha_baja:Date;
   urlimg:string;
   condicion:number;
-  rssi:number;
+  rssi:number | null;
+  location:string | null;
+  last_time_located:string | null;
   email:string;
   nombre_cliente:string;
 }
@@ -38,6 +40,8 @@ export function productTransform(backendProduct: BackendProduct): Product {
     imageUrl: backendProduct.urlimg,
     condition: backendProduct.condicion,
     rssi: backendProduct.rssi,
+    location: backendProduct.location,
+    lastTimeLocated: backendProduct.last_time_located,
     clientEmail: backendProduct.email,
     clientName: backendProduct.nombre_cliente,
   };

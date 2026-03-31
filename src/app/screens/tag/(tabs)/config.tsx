@@ -1,7 +1,7 @@
 import { Dimensions, Linking, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
-import { AppBar, AppButton, Input } from "@/src/components";
-import { useState } from "react";
+import { AppBar, AppButton } from "@/src/components";
+import { useEffect, useMemo, useState } from "react";
 import { appHorizontalPadding, appTopPadding } from "@/src/utils/constants";
 import { ThemedText } from "@/src/components/ThemedText";
 import { colors } from "@/src/utils/colors";
@@ -9,6 +9,7 @@ import { ScrollView } from "react-native-gesture-handler";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUserLogged, setAuth } from "@/src/store/AuthSlice";
 import { Icon } from "react-native-paper";
+import { useFetch } from "@/src/hooks/useFetch";
 
 const { height, fontScale } = Dimensions.get("window");
 
@@ -42,10 +43,46 @@ const OptionButton = ({
 };
 
 export default function ConfigScreen() {
+  const fetch = useFetch();
   const dispatch = useDispatch();
   const user = useSelector(selectUserLogged);
+  const [companies, setCompanies] = useState<{ id: string; name: string | null }[]>([]);
 
   const router = useRouter();
+  const selectedCompanyName = useMemo(() => {
+    if (!user?.companyId) {
+      return "Sin empresa";
+    }
+    const selectedCompany = companies.find((company) => company.id === user.companyId);
+    if (!selectedCompany) {
+      return "Empresa no encontrada";
+    }
+    return selectedCompany.name ?? "Sin nombre";
+  }, [companies, user?.companyId]);
+
+  useEffect(() => {
+    const loadCompanies = async () => {
+      try {
+        const response = await fetch("/company", {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        });
+        const responsePayload = await response.json();
+        if (response.ok && Array.isArray(responsePayload.data)) {
+          setCompanies(responsePayload.data);
+        }
+      } catch {
+        setCompanies([]);
+      }
+    };
+
+    loadCompanies().catch(() => {
+      setCompanies([]);
+    });
+  }, [fetch]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -77,6 +114,13 @@ export default function ConfigScreen() {
             value={`${user?.phoneRef ? user?.phoneRef : "+54"} ${user?.phoneNumber}`}
             onPress={() => {
               router.navigate("/screens/auth/changePhone");
+            }}
+          />
+          <OptionButton
+            title="Empresa relacionada"
+            value={selectedCompanyName}
+            onPress={() => {
+              router.navigate("/screens/auth/changeCompany" as any);
             }}
           />
           <OptionButton
@@ -131,7 +175,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   logOutButtonContainer: {
-    marginTop: height * 0.04,
     paddingBottom: height * 0.03,
     flex: 1,
     justifyContent: "flex-end",

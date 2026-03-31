@@ -17,6 +17,7 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  companyId: string;
   status: string;
   gender: string;
   phoneNumber: string;
@@ -48,7 +49,9 @@ export interface Product {
   deletionDate: Date;
   imageUrl: string;
   condition: number;
-  rssi: number;
+  rssi: number | null;
+  location: string | null;
+  lastTimeLocated: string | null;
   clientEmail: string;
   clientName: string;
 }

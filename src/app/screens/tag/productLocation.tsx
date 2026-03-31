@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppBar, AppButton } from "@/src/components";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "expo-router";
@@ -28,12 +28,31 @@ const ProductLocation = () => {
   const product = useSelector(selectProduct);
   const auth = useSelector(selectAuth);
 
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
+  const productLocation = useMemo(() => {
+    if (!product?.location || typeof product.location !== "string") {
+      return null;
+    }
+    try {
+      const parsedLocation = JSON.parse(product.location);
+      const latitude = Number(parsedLocation?.lat);
+      const longitude = Number(parsedLocation?.long);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return null;
+      }
+      return {
+        latitude,
+        longitude,
+      };
+    } catch {
+      return null;
+    }
+  }, [product?.location]);
 
   useEffect(() => {
     (async () => {
-      let location = await Location.getCurrentPositionAsync({});
-      setLocation(location);
+      const currentLocation = await Location.getCurrentPositionAsync({});
+      setUserLocation(currentLocation);
       if (product?.statusId === PRODUCT_STATUS.LOST) {
         await handleLostProduct();
       }
@@ -107,6 +126,64 @@ const ProductLocation = () => {
     dispatch(setLocationPermission(status));
   };
 
+  const initialRegion = useMemo(() => {
+    if (productLocation) {
+      return {
+        latitude: productLocation.latitude,
+        longitude: productLocation.longitude,
+        latitudeDelta: 0.002,
+        longitudeDelta: 0.002,
+      };
+    }
+    if (userLocation) {
+      return {
+        latitude: userLocation.coords.latitude,
+        longitude: userLocation.coords.longitude,
+        latitudeDelta: 0.002,
+        longitudeDelta: 0.002,
+      };
+    }
+    return null;
+  }, [productLocation, userLocation]);
+
+  const singleMarkerCoordinate = useMemo(() => {
+    if (productLocation) {
+      return productLocation;
+    }
+    if (userLocation) {
+      return {
+        latitude: userLocation.coords.latitude,
+        longitude: userLocation.coords.longitude,
+      };
+    }
+    return null;
+  }, [productLocation, userLocation]);
+
+  const formattedLastTimeLocated = useMemo(() => {
+    if (!product?.lastTimeLocated) {
+      return "No disponible";
+    }
+    const normalizedDate = (() => {
+      if (product.lastTimeLocated.includes("T")) {
+        return product.lastTimeLocated;
+      }
+      return `${product.lastTimeLocated.replace(" ", "T")}Z`;
+    })();
+    const parsedDate = new Date(normalizedDate);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return "No disponible";
+    }
+    return new Intl.DateTimeFormat(undefined, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    }).format(parsedDate);
+  }, [product?.lastTimeLocated]);
+
   if (locationPermission === PermissionStatus.DENIED) {
     return (
       <>
@@ -140,27 +217,41 @@ const ProductLocation = () => {
           router.back();
         }}
       />
-      {location && (
-        <MapView
-          style={styles.map}
-          provider={PROVIDER_DEFAULT}
-          initialRegion={{
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            latitudeDelta: 0.002,
-            longitudeDelta: 0.002,
-          }}
-          showsUserLocation={true}
-        >
-          {location && (
-            <Marker
-              coordinate={{
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
+      {initialRegion && (
+        <View style={styles.mapContainer}>
+          <MapView
+            style={styles.map}
+            provider={PROVIDER_DEFAULT}
+            initialRegion={initialRegion}
+            showsUserLocation={true}
+          >
+            {singleMarkerCoordinate && (
+              <Marker
+                coordinate={singleMarkerCoordinate}
+                title={productLocation ? "Ubicación del producto" : "Ubicación aproximada"}
+                description={
+                  product?.rssi !== null && product?.rssi !== undefined
+                    ? `RSSI: ${product.rssi}`
+                    : undefined
+                }
+                pinColor="red"
+              />
+            )}
+          </MapView>
+          <View style={styles.lastTimeFloatingContainer}>
+            <ThemedText style={styles.lastTimeText}>
+              Última vez encontrado: {formattedLastTimeLocated}
+            </ThemedText>
+          </View>
+          <View style={styles.floatingButtonContainer}>
+            <AppButton
+              title="Localizar nuevamente"
+              onPress={() => {
+                router.replace("/screens/tag/findTag");
               }}
             />
-          )}
-        </MapView>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -178,6 +269,31 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  mapContainer: {
+    flex: 1,
+  },
+  floatingButtonContainer: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 24,
+    elevation: 4,
+  },
+  lastTimeFloatingContainer: {
+    position: "absolute",
+    top: 12,
+    left: 16,
+    right: 16,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  lastTimeText: {
+    color: colors.primary,
+    fontWeight: "600",
+    fontSize: 12,
   },
 });
 

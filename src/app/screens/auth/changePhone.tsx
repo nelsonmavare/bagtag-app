@@ -59,6 +59,7 @@ export default function ChangePhoneScreen() {
         nombre: user?.name,
         email: user?.email,
         rol: user?.role,
+        idempresa: user?.companyId,
         genero: user?.gender,
         fecha_alta: user?.dateJoined,
         telcel: phone,

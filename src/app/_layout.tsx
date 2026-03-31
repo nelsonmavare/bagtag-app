@@ -49,6 +49,7 @@ export default function RootLayout() {
         <Stack.Screen name="screens/auth/deleteAccount" options={{ headerShown: false }} />
         <Stack.Screen name="screens/auth/changeEmail" options={{ headerShown: false }} />
         <Stack.Screen name="screens/auth/changePhone" options={{ headerShown: false }} />
+        <Stack.Screen name="screens/auth/changeCompany" options={{ headerShown: false }} />
 
         <Stack.Screen name="screens/scanner" options={{ headerShown: false }} />
         <Stack.Screen name="screens/tag/findTag" options={{ headerShown: false }} />

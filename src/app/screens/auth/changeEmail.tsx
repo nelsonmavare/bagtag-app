@@ -56,6 +56,7 @@ export default function ChangeEmailScreen() {
         nombre: user?.name,
         email: email,
         rol: user?.role,
+        idempresa: user?.companyId,
         genero: user?.gender,
         fecha_alta: user?.dateJoined,
         telcel: user?.phoneNumber,

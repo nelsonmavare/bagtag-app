@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useCallback } from 'react';
 import { environment } from '../app/environments/environment';
 /* import { reduxStore } from '../store/store';
 import { setAuthToken, setUser } from '../store/AuthSlice'; */
@@ -6,7 +7,7 @@ import { setAuthToken, setUser } from '../store/AuthSlice'; */
 const BACKEND_URL = environment.host;
 
 export function useFetch(): (uri: string, options: RequestInit | undefined) => Promise<Response> {
-	return async (uri: string, options: RequestInit | undefined) => {
+	return useCallback(async (uri: string, options: RequestInit | undefined) => {
 		let response: Response;
 		try {
 			response = await fetch(`${BACKEND_URL}/api/v1${uri}`, options);
@@ -26,5 +27,5 @@ export function useFetch(): (uri: string, options: RequestInit | undefined) => P
 			}
 		}
 		return response;
-	};
+	}, []);
 }

@@ -273,6 +273,13 @@ export default function HomeScreen() {
                   dispatch(setProduct(product));
                   if (product.statusId === PRODUCT_STATUS.LOST) {
                     setModalVisible(true);
+                  } else if (
+                    typeof product.location === "string" &&
+                    product.location.trim().length > 0 &&
+                    product.rssi !== null &&
+                    product.rssi !== undefined
+                  ) {
+                    router.navigate("/screens/tag/productLocation");
                   } else {
                     router.navigate(
                       Platform.OS === "ios" ? "/screens/tag/externalApp" : "/screens/tag/findTag"

@@ -110,7 +110,7 @@ export default function DeleteAccountScreen() {
           success: boolean;
           data: any;
         }>;
-      } = await fetch(`/dissolveuser/${user?.id}`, options);
+      } = await fetch(`/user/${user?.id}`, options);
 
       const responsePayload = await response.json();
       const responseData = responsePayload.data;
