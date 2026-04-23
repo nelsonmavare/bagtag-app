@@ -35,6 +35,31 @@ import useReport from "@/src/hooks/useReport";
 
 const { width, height } = Dimensions.get("window");
 
+function parseComparableDate(value?: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  const match = trimmed.match(
+    /^(\d{4})[\/-](\d{2})[\/-](\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?$/
+  );
+  if (!match) {
+    const fallback = new Date(trimmed).getTime();
+    return Number.isNaN(fallback) ? null : fallback;
+  }
+  const [, year, month, day, hours = "00", minutes = "00", seconds = "00"] = match;
+  const parsedDate = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hours),
+    Number(minutes),
+    Number(seconds)
+  );
+  const timestamp = parsedDate.getTime();
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
 export default function HomeScreen() {
   const fetch = useFetch();
   //const bleManager = new BleManager();
@@ -53,6 +78,17 @@ export default function HomeScreen() {
     () => selectedProduct?.statusId === PRODUCT_STATUS.LOST,
     [selectedProduct]
   );
+  const hasNewLocationAfterLost = useMemo(() => {
+    if (!isSelectedProductLost || !selectedProduct) {
+      return false;
+    }
+    const lostDateTimestamp = parseComparableDate(selectedProduct.lostDate);
+    const lastTimeLocatedTimestamp = parseComparableDate(selectedProduct.lastTimeLocated);
+    if (lostDateTimestamp === null || lastTimeLocatedTimestamp === null) {
+      return false;
+    }
+    return lastTimeLocatedTimestamp > lostDateTimestamp;
+  }, [isSelectedProductLost, selectedProduct]);
 
   const onMarkedAsLost = () => {
     setModalVisible(false);
@@ -311,55 +347,89 @@ export default function HomeScreen() {
           </ThemedText>
           <ThemedText style={styles.modalInstructions}>
             {isSelectedProductLost
-              ? "Esta maleta tiene status de perdida y está a la espera de que algún usuario la encuentre. ¿Desea realizar una nueva búsqueda o marcarla como encontrada?"
+              ? hasNewLocationAfterLost
+                ? "Esta maleta tiene status de perdida y un usuario ha podido ofrecer información de su ubicación ¿Desea ver la ultima ubicación?"
+                : "Esta maleta tiene status de perdida y está a la espera de que algún usuario la encuentre. ¿Desea realizar una nueva búsqueda o marcarla como encontrada?"
               : "Esta acción no se puede deshacer y perderás todos los datos asociados a este tag registrado."}
           </ThemedText>
           <View style={styles.modalButtonContainer}>
-            <AppButton
-              title={isSelectedProductLost ? "Realizar nueva búsqueda" : "Aceptar"}
-              loading={loading}
-              disabled={loading}
-              onPress={async () => {
-                if (productToDelete) {
-                  setModalVisible(false);
-                  await deleteProduct(productToDelete.id);
-                } else if (isSelectedProductLost) {
-                  setModalVisible(false);
-                  router.navigate("/screens/tag/findTag");
-                }
-              }}
-              style={{
-                backgroundColor: isSelectedProductLost ? colors.primary : "red",
-                marginBottom: 15,
-              }}
-              labelStyle={{ color: "white" }}
-            />
-            <AppButton
-              title={isSelectedProductLost ? "Marcar como encontrada" : "Cancelar"}
-              onPress={async () => {
-                if (isSelectedProductLost) {
-                  await onProductLost(selectedProduct);
-                } else {
-                  setModalVisible(false);
-                }
-              }}
-              loading={loading}
-              disabled={loading}
-              style={{ backgroundColor: colors.secondary }}
-              labelStyle={{ color: loading ? "darkgray" : colors.primary }}
-            />
-            {isSelectedProductLost && (
-              <AppButton
-                title={"Cancelar"}
-                onPress={() => {
-                  setModalVisible(false);
-                  setTimeout(() => {
-                    dispatch(setProduct(undefined));
-                  }, 500);
-                }}
-                style={{ backgroundColor: "transparent", marginTop: height * 0.02 }}
-                labelStyle={{ color: colors.primary }}
-              />
+            {isSelectedProductLost ? (
+              <>
+                {hasNewLocationAfterLost && (
+                  <AppButton
+                    title={"Ver ultima ubicación"}
+                    loading={loading}
+                    disabled={loading}
+                    onPress={() => {
+                      setModalVisible(false);
+                      router.navigate("/screens/tag/productLocation");
+                    }}
+                    style={{ backgroundColor: colors.primary, marginBottom: 15 }}
+                    labelStyle={{ color: "white" }}
+                  />
+                )}
+                <AppButton
+                  title={"Realizar nueva búsqueda"}
+                  loading={loading}
+                  disabled={loading}
+                  onPress={() => {
+                    setModalVisible(false);
+                    router.navigate("/screens/tag/findTag");
+                  }}
+                  style={{
+                    backgroundColor: hasNewLocationAfterLost ? colors.secondary : colors.primary,
+                    marginBottom: 15,
+                  }}
+                  labelStyle={{ color: hasNewLocationAfterLost ? colors.primary : "white" }}
+                />
+                <AppButton
+                  title={"Marcar como encontrada"}
+                  onPress={async () => {
+                    await onProductLost(selectedProduct);
+                  }}
+                  loading={loading}
+                  disabled={loading}
+                  style={{ backgroundColor: colors.secondary }}
+                  labelStyle={{ color: loading ? "darkgray" : colors.primary }}
+                />
+                <AppButton
+                  title={"Cancelar"}
+                  onPress={() => {
+                    setModalVisible(false);
+                    setTimeout(() => {
+                      dispatch(setProduct(undefined));
+                    }, 500);
+                  }}
+                  style={{ backgroundColor: "transparent", marginTop: height * 0.02 }}
+                  labelStyle={{ color: colors.primary }}
+                />
+              </>
+            ) : (
+              <>
+                <AppButton
+                  title={"Aceptar"}
+                  loading={loading}
+                  disabled={loading}
+                  onPress={async () => {
+                    if (productToDelete) {
+                      setModalVisible(false);
+                      await deleteProduct(productToDelete.id);
+                    }
+                  }}
+                  style={{ backgroundColor: "red", marginBottom: 15 }}
+                  labelStyle={{ color: "white" }}
+                />
+                <AppButton
+                  title={"Cancelar"}
+                  onPress={() => {
+                    setModalVisible(false);
+                  }}
+                  loading={loading}
+                  disabled={loading}
+                  style={{ backgroundColor: colors.secondary }}
+                  labelStyle={{ color: loading ? "darkgray" : colors.primary }}
+                />
+              </>
             )}
           </View>
         </>

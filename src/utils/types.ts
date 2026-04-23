@@ -46,7 +46,7 @@ export interface Product {
   userId: number;
   statusId: number;
   productTypeId: number;
-  deletionDate: Date;
+  deletionDate: string | null;
   imageUrl: string;
   condition: number;
   rssi: number | null;
@@ -54,6 +54,7 @@ export interface Product {
   lastTimeLocated: string | null;
   clientEmail: string;
   clientName: string;
+  lostDate: string | null;
 }
 
 export interface SBDevice {

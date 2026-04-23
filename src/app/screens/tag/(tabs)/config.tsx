@@ -117,7 +117,7 @@ export default function ConfigScreen() {
             }}
           />
           <OptionButton
-            title="Empresa relacionada"
+            title="Agente o aerolínea relacionada"
             value={selectedCompanyName}
             onPress={() => {
               router.navigate("/screens/auth/changeCompany" as any);

@@ -274,11 +274,10 @@ export default function FindTagScreen() {
                   userEmail: product.email,
                   userName: product.nombre,
                 });
-              } else {
-                const peripheral = discoveredPeripheralsBySerial.get(product.serial as string);
-                if (peripheral) {
-                  await onUpdateOtherProductLocation(product, peripheral);
-                }
+              }
+              const peripheral = discoveredPeripheralsBySerial.get(product.serial as string);
+              if (peripheral) {
+                await onUpdateOtherProductLocation(product, peripheral);
               }
             }
           }

@@ -70,7 +70,7 @@ export default function useReport({
 
       const responsePayload = await response.json();
       const responseData = responsePayload.data;
-
+      console.log("responseData", responseData);
       if (response.ok) {
         if (responseData.estado === "200") {
           dispatch(setProduct(undefined));
@@ -85,6 +85,7 @@ export default function useReport({
         }
       }
     } catch (error: unknown) {
+      console.log("error", error);
       const errorMessage = error as Error;
       Toast.show({
         text1: errorMessage.message,

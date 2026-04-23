@@ -13,7 +13,8 @@ export interface BackendProduct {
   usuario_id:number;
   tipo_estado_id:number;
   tipo_producto_id:number;
-  fecha_baja:Date;
+  fecha_baja:string | null;
+  lost_time:string | null;
   urlimg:string;
   condicion:number;
   rssi:number | null;
@@ -44,5 +45,6 @@ export function productTransform(backendProduct: BackendProduct): Product {
     lastTimeLocated: backendProduct.last_time_located,
     clientEmail: backendProduct.email,
     clientName: backendProduct.nombre_cliente,
+    lostDate: backendProduct.lost_time ?? null,
   };
 }
