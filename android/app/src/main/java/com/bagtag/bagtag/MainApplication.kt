@@ -3,6 +3,9 @@ package com.bagtag.bagtag
 import android.app.Application
 import android.content.res.Configuration
 
+import com.microsoft.appcenter.AppCenter
+import com.microsoft.appcenter.analytics.Analytics
+import com.microsoft.appcenter.crashes.Crashes
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactNativeHost
@@ -41,6 +44,7 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     SoLoader.init(this, false)
+    AppCenter.start(this, "9283660e-16d0-4931-9068-a7300c60983d", Analytics::class.java, Crashes::class.java)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       // If you opted-in for the New Architecture, we load the native entry point for this app.
       load()

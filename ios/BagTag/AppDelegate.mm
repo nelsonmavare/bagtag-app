@@ -5,6 +5,10 @@
 #endif
 // @generated end react-native-maps-import
 
+#import <AppCenterReactNativeShared/AppCenterReactNativeShared.h>
+#import <AppCenterReactNative/AppCenterReactNative.h>
+#import <AppCenterReactNativeAnalytics/AppCenterReactNativeAnalytics.h>
+#import <AppCenterReactNativeCrashes/AppCenterReactNativeCrashes.h>
 #import <React/RCTBundleURLProvider.h>
 #import <React/RCTLinkingManager.h>
 
@@ -17,6 +21,11 @@
   [GMSServices provideAPIKey:@"AIzaSyBrL0UfJAIpCiCFUtOsRSR_qddZeH5rkQM"];
 #endif
 // @generated end react-native-maps-init
+  [AppCenterReactNativeShared setStartAutomatically:YES];
+  [AppCenterReactNativeShared setAppSecret:@"9283660e-16d0-4931-9068-a7300c60983d"];
+  [AppCenterReactNative register];
+  [AppCenterReactNativeAnalytics registerWithInitiallyEnabled:true];
+  [AppCenterReactNativeCrashes registerWithAutomaticProcessing];
   self.moduleName = @"main";
 
   // You can add your custom initial props in the dictionary below.
