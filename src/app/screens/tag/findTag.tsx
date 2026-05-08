@@ -22,7 +22,7 @@ import { ThemedText } from "@/src/components/ThemedText";
 import { ThemedView } from "@/src/components/ThemedView";
 import { AppBar, AppButton } from "@/src/components";
 import { useDispatch, useSelector } from "react-redux";
-import { PRODUCT_STATUS, SBDevice } from "@/src/utils/types";
+import { PRODUCT_STATUS } from "@/src/utils/types";
 import { selectProduct, setProduct } from "@/src/store/TagSlice";
 import Toast from "react-native-toast-message";
 import { BLE_ERROR_MESSAGES } from "@/src/utils/constants";
@@ -31,6 +31,7 @@ import { selectAuth, selectUserLogged } from "@/src/store/AuthSlice";
 import { requestPermissions } from "@/src/hooks/useBLE";
 import { environment } from "../../environments/environment";
 import useReport from "@/src/hooks/useReport";
+import { BleDeviceDebugLogger } from "@/src/debug/bleDeviceLogger";
 
 const { width, height } = Dimensions.get("window");
 const SECONDS_TO_SCAN_FOR = 10;
@@ -51,6 +52,7 @@ export default function FindTagScreen() {
   const [bleError, setBleError] = useState<{ errorCode: string; message: string } | null>(null);
   const [peripherals, setPeripherals] = useState<Map<string, Peripheral>>(new Map());
   const hasHandledScanResultRef = useRef(false);
+  const bleDebugLoggerRef = useRef<BleDeviceDebugLogger | null>(null);
 
   const notifyProductLostWereFinded = async (productInfo: {
     userEmail: string;
@@ -158,34 +160,40 @@ export default function FindTagScreen() {
 
   const startScan = async () => {
     try {
-      await BleManager.enableBluetooth()
-        .then(() => {
-          setBleError(null);
-          setPeripherals(new Map());
-          setIsScanning(true);
-          hasHandledScanResultRef.current = false;
-          console.debug("[startScan] starting scan...");
-          BleManager.scan([], SECONDS_TO_SCAN_FOR, true, {
-            matchMode: BleScanMatchMode.Sticky,
-            scanMode: BleScanMode.LowLatency,
-            callbackType: BleScanCallbackType.AllMatches,
-          })
-            .then(() => {
-              console.debug("[startScan] scan promise returned successfully.");
-            })
-            .catch((err: any) => {
-              console.error("[startScan] ble scan returned in error", err);
-            });
-        })
-        .catch((error) => {
-          setBleError({ errorCode: "001", message: "El bluetooth no pudo ser activado" });
+      await BleManager.enableBluetooth();
+      setBleError(null);
+      setPeripherals(new Map());
+      setIsScanning(true);
+      hasHandledScanResultRef.current = false;
+
+      try {
+        bleDebugLoggerRef.current = await BleDeviceDebugLogger.create({
+          scanSeconds: SECONDS_TO_SCAN_FOR,
+          targetSerial: product?.serial as string | undefined,
         });
+        console.debug("[BLE debug] log file created:", bleDebugLoggerRef.current.getFileUri());
+      } catch (error) {
+        console.error("[BLE debug] could not create log file:", error);
+      }
+
+      console.debug("[startScan] starting scan...");
+      await BleManager.scan([], SECONDS_TO_SCAN_FOR, true, {
+        matchMode: BleScanMatchMode.Sticky,
+        scanMode: BleScanMode.LowLatency,
+        callbackType: BleScanCallbackType.AllMatches,
+      });
+      console.debug("[startScan] scan promise returned successfully.");
     } catch (error) {
+      console.error("[startScan] ble scan returned in error", error);
       setBleError({ errorCode: "001", message: "El bluetooth no pudo ser activado" });
     }
   };
 
   const handleDiscoverPeripheral = (peripheral: Peripheral) => {
+    bleDebugLoggerRef.current?.recordPeripheral(peripheral).catch((error) => {
+      console.error("[BLE debug] could not record discovered peripheral:", error);
+    });
+
     if (!peripheral.name) {
       peripheral.name = "NO NAME";
     }
@@ -197,6 +205,9 @@ export default function FindTagScreen() {
   const handleStopScan = () => {
     console.debug("[handleStopScan] scan is stopped.");
     setIsScanning(false);
+    bleDebugLoggerRef.current?.finish("BleManagerStopScan").catch((error) => {
+      console.error("[BLE debug] could not finish log file:", error);
+    });
   };
 
   useEffect(() => {
@@ -233,6 +244,7 @@ export default function FindTagScreen() {
       BleManager.stopScan()
         .then(() => {
           console.debug("Scanning stopped successfully");
+          return bleDebugLoggerRef.current?.finish("component-unmount");
         })
         .catch((error) => {
           console.error("Failed to stop scanning:", error);

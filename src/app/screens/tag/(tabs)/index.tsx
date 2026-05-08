@@ -318,7 +318,7 @@ export default function HomeScreen() {
                     router.navigate("/screens/tag/productLocation");
                   } else {
                     router.navigate(
-                      Platform.OS === "ios" ? "/screens/tag/externalApp" : "/screens/tag/findTag"
+                      /* Platform.OS === "ios" ? "/screens/tag/externalApp" :  */"/screens/tag/findTag"
                     );
                   }
                 }}

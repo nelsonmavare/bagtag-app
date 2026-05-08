@@ -1,4 +1,4 @@
-import { Dimensions, Linking, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Alert, Dimensions, Linking, Modal, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { AppBar, AppButton } from "@/src/components";
 import { useEffect, useMemo, useState } from "react";
@@ -10,6 +10,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { selectUserLogged, setAuth } from "@/src/store/AuthSlice";
 import { Icon } from "react-native-paper";
 import { useFetch } from "@/src/hooks/useFetch";
+import {
+  listBleDebugLogFiles,
+  readBleDebugLogFile,
+  type BleDebugLogFile,
+} from "@/src/debug/bleDeviceLogger";
 
 const { height, fontScale } = Dimensions.get("window");
 
@@ -47,6 +52,9 @@ export default function ConfigScreen() {
   const dispatch = useDispatch();
   const user = useSelector(selectUserLogged);
   const [companies, setCompanies] = useState<{ id: string; name: string | null }[]>([]);
+  const [bleLogContent, setBleLogContent] = useState("");
+  const [bleLogName, setBleLogName] = useState("");
+  const [showBleLogModal, setShowBleLogModal] = useState(false);
 
   const router = useRouter();
   const selectedCompanyName = useMemo(() => {
@@ -83,6 +91,49 @@ export default function ConfigScreen() {
       setCompanies([]);
     });
   }, [fetch]);
+
+  const showBleDebugLogFile = async (logFile: BleDebugLogFile) => {
+    const content = await readBleDebugLogFile(logFile);
+    setBleLogName(logFile.name);
+    setBleLogContent(content);
+    setShowBleLogModal(true);
+  };
+
+  const openBleDebugLogs = async () => {
+    try {
+      const logFiles = await listBleDebugLogFiles();
+
+      if (logFiles.length === 0) {
+        Alert.alert("Logs BLE", "No hay archivos de debug BLE guardados todavía.");
+        return;
+      }
+
+      if (logFiles.length === 1) {
+        await showBleDebugLogFile(logFiles[0]);
+        return;
+      }
+
+      Alert.alert(
+        "Logs BLE",
+        "Selecciona el archivo de debug que quieres abrir.",
+        [
+          ...logFiles.slice(0, 5).map((logFile) => ({
+            text: logFile.name,
+            onPress: () => {
+              showBleDebugLogFile(logFile).catch((error) => {
+                console.error("[BLE debug] could not show selected log file:", error);
+                Alert.alert("Logs BLE", "No se pudo leer el archivo de debug BLE.");
+              });
+            },
+          })),
+          { text: "Cancelar", style: "cancel" as const },
+        ],
+      );
+    } catch (error) {
+      console.error("[BLE debug] could not open log files:", error);
+      Alert.alert("Logs BLE", "No se pudo abrir el archivo de debug BLE.");
+    }
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -124,6 +175,11 @@ export default function ConfigScreen() {
             }}
           />
           <OptionButton
+            title="Logs BLE de debug"
+            onPress={openBleDebugLogs}
+            prefix={"file-document-outline"}
+          />
+          <OptionButton
             title="Soporte"
             onPress={() => {
               Linking.openURL('mailto:soporte@bagtag.com.ar');
@@ -148,6 +204,26 @@ export default function ConfigScreen() {
           </View>
         </View>
       </ScrollView>
+      <Modal
+        animationType="slide"
+        visible={showBleLogModal}
+        onRequestClose={() => {
+          setShowBleLogModal(false);
+        }}
+      >
+        <View style={styles.logModalContainer}>
+          <ThemedText style={styles.logModalTitle}>{bleLogName}</ThemedText>
+          <ScrollView style={styles.logContentContainer}>
+            <ThemedText style={styles.logContentText}>{bleLogContent}</ThemedText>
+          </ScrollView>
+          <AppButton
+            title="Cerrar"
+            onPress={() => {
+              setShowBleLogModal(false);
+            }}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -178,5 +254,31 @@ const styles = StyleSheet.create({
     paddingBottom: height * 0.03,
     flex: 1,
     justifyContent: "flex-end",
+  },
+  logModalContainer: {
+    flex: 1,
+    paddingHorizontal: appHorizontalPadding,
+    paddingTop: appTopPadding + 20,
+    paddingBottom: height * 0.03,
+    backgroundColor: colors.light,
+  },
+  logModalTitle: {
+    color: colors.primary,
+    fontSize: fontScale * 17,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  logContentContainer: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    marginBottom: 16,
+    padding: 12,
+  },
+  logContentText: {
+    color: colors.primary,
+    fontSize: fontScale * 12,
+    fontFamily: "monospace",
   },
 });
