@@ -1,7 +1,8 @@
 import { Alert, Dimensions, Linking, Modal, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { AppBar, AppButton } from "@/src/components";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as Clipboard from "expo-clipboard";
 import { appHorizontalPadding, appTopPadding } from "@/src/utils/constants";
 import { ThemedText } from "@/src/components/ThemedText";
 import { colors } from "@/src/utils/colors";
@@ -56,6 +57,7 @@ export default function ConfigScreen() {
   const [bleLogName, setBleLogName] = useState("");
   const [selectedBleLogFile, setSelectedBleLogFile] = useState<BleDebugLogFile | null>(null);
   const [showBleLogModal, setShowBleLogModal] = useState(false);
+  const bleLogScrollRef = useRef<ScrollView | null>(null);
 
   const router = useRouter();
   const selectedCompanyName = useMemo(() => {
@@ -129,6 +131,21 @@ export default function ConfigScreen() {
     ]);
   };
 
+  const handleCopyBleLogContent = async () => {
+    if (!bleLogContent.trim()) {
+      Alert.alert("Logs BLE", "No hay contenido para copiar.");
+      return;
+    }
+
+    try {
+      await Clipboard.setStringAsync(bleLogContent);
+      Alert.alert("Logs BLE", "Contenido copiado al portapapeles.");
+    } catch (error) {
+      console.error("[BLE debug] could not copy log content:", error);
+      Alert.alert("Logs BLE", "No se pudo copiar el contenido.");
+    }
+  };
+
   const openBleDebugLogs = async () => {
     try {
       const logFiles = await listBleDebugLogFiles();
@@ -164,6 +181,20 @@ export default function ConfigScreen() {
       Alert.alert("Logs BLE", "No se pudo abrir el archivo de debug BLE.");
     }
   };
+
+  useEffect(() => {
+    if (!showBleLogModal) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      bleLogScrollRef.current?.flashScrollIndicators();
+    }, 250);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [showBleLogModal, bleLogContent]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -245,13 +276,23 @@ export default function ConfigScreen() {
         <View style={styles.logModalContainer}>
           <ThemedText style={styles.logModalTitle}>{bleLogName}</ThemedText>
           <ScrollView
+            ref={bleLogScrollRef}
             style={styles.logContentContainer}
             contentContainerStyle={styles.logContentContainerInner}
             nestedScrollEnabled
+            scrollEnabled
+            showsVerticalScrollIndicator
+            indicatorStyle="black"
+            scrollIndicatorInsets={{ right: 2 }}
             keyboardShouldPersistTaps="handled"
           >
             <ThemedText style={styles.logContentText}>{bleLogContent}</ThemedText>
           </ScrollView>
+          <AppButton
+            title="Copiar contenido"
+            style={{ marginBottom: 12 }}
+            onPress={handleCopyBleLogContent}
+          />
           <AppButton
             title="Eliminar archivo"
             style={{ backgroundColor: colors.error, marginBottom: 12 }}
