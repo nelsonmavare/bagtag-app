@@ -5,6 +5,7 @@ import {
   Image,
   NativeEventEmitter,
   NativeModules,
+  Platform,
   StyleSheet,
   View,
 } from "react-native";
@@ -160,7 +161,9 @@ export default function FindTagScreen() {
 
   const startScan = async () => {
     try {
-      await BleManager.enableBluetooth();
+      if (Platform.OS === "android") {
+        await BleManager.enableBluetooth();
+      }
       setBleError(null);
       setPeripherals(new Map());
       setIsScanning(true);
@@ -177,11 +180,15 @@ export default function FindTagScreen() {
       }
 
       console.debug("[startScan] starting scan...");
-      await BleManager.scan([], SECONDS_TO_SCAN_FOR, true, {
-        matchMode: BleScanMatchMode.Sticky,
-        scanMode: BleScanMode.LowLatency,
-        callbackType: BleScanCallbackType.AllMatches,
-      });
+      if (Platform.OS === "android") {
+        await BleManager.scan([], SECONDS_TO_SCAN_FOR, true, {
+          matchMode: BleScanMatchMode.Sticky,
+          scanMode: BleScanMode.LowLatency,
+          callbackType: BleScanCallbackType.AllMatches,
+        });
+      } else {
+        await BleManager.scan([], SECONDS_TO_SCAN_FOR, true);
+      }
       console.debug("[startScan] scan promise returned successfully.");
     } catch (error) {
       console.error("[startScan] ble scan returned in error", error);
