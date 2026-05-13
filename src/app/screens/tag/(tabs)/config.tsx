@@ -1,16 +1,16 @@
-import { Alert, Dimensions, Linking, Modal, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Alert, Dimensions, Linking, Modal, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { AppBar, AppButton } from "@/src/components";
 import { useEffect, useMemo, useState } from "react";
 import { appHorizontalPadding, appTopPadding } from "@/src/utils/constants";
 import { ThemedText } from "@/src/components/ThemedText";
 import { colors } from "@/src/utils/colors";
-import { ScrollView } from "react-native-gesture-handler";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUserLogged, setAuth } from "@/src/store/AuthSlice";
 import { Icon } from "react-native-paper";
 import { useFetch } from "@/src/hooks/useFetch";
 import {
+  deleteBleDebugLogFile,
   listBleDebugLogFiles,
   readBleDebugLogFile,
   type BleDebugLogFile,
@@ -54,6 +54,7 @@ export default function ConfigScreen() {
   const [companies, setCompanies] = useState<{ id: string; name: string | null }[]>([]);
   const [bleLogContent, setBleLogContent] = useState("");
   const [bleLogName, setBleLogName] = useState("");
+  const [selectedBleLogFile, setSelectedBleLogFile] = useState<BleDebugLogFile | null>(null);
   const [showBleLogModal, setShowBleLogModal] = useState(false);
 
   const router = useRouter();
@@ -94,9 +95,38 @@ export default function ConfigScreen() {
 
   const showBleDebugLogFile = async (logFile: BleDebugLogFile) => {
     const content = await readBleDebugLogFile(logFile);
+    setSelectedBleLogFile(logFile);
     setBleLogName(logFile.name);
     setBleLogContent(content);
     setShowBleLogModal(true);
+  };
+
+  const handleDeleteBleLogFile = () => {
+    if (!selectedBleLogFile) {
+      return;
+    }
+
+    Alert.alert("Eliminar log BLE", `¿Deseas eliminar el archivo ${selectedBleLogFile.name}?`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: () => {
+          deleteBleDebugLogFile(selectedBleLogFile)
+            .then(() => {
+              setShowBleLogModal(false);
+              setSelectedBleLogFile(null);
+              setBleLogName("");
+              setBleLogContent("");
+              Alert.alert("Logs BLE", "Archivo eliminado correctamente.");
+            })
+            .catch((error) => {
+              console.error("[BLE debug] could not delete selected log file:", error);
+              Alert.alert("Logs BLE", "No se pudo eliminar el archivo de debug BLE.");
+            });
+        },
+      },
+    ]);
   };
 
   const openBleDebugLogs = async () => {
@@ -209,17 +239,29 @@ export default function ConfigScreen() {
         visible={showBleLogModal}
         onRequestClose={() => {
           setShowBleLogModal(false);
+          setSelectedBleLogFile(null);
         }}
       >
         <View style={styles.logModalContainer}>
           <ThemedText style={styles.logModalTitle}>{bleLogName}</ThemedText>
-          <ScrollView style={styles.logContentContainer}>
+          <ScrollView
+            style={styles.logContentContainer}
+            contentContainerStyle={styles.logContentContainerInner}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+          >
             <ThemedText style={styles.logContentText}>{bleLogContent}</ThemedText>
           </ScrollView>
+          <AppButton
+            title="Eliminar archivo"
+            style={{ backgroundColor: colors.error, marginBottom: 12 }}
+            onPress={handleDeleteBleLogFile}
+          />
           <AppButton
             title="Cerrar"
             onPress={() => {
               setShowBleLogModal(false);
+              setSelectedBleLogFile(null);
             }}
           />
         </View>
@@ -274,7 +316,10 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     borderRadius: 8,
     marginBottom: 16,
+  },
+  logContentContainerInner: {
     padding: 12,
+    paddingBottom: 24,
   },
   logContentText: {
     color: colors.primary,

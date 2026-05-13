@@ -91,6 +91,10 @@ export const readBleDebugLogFile = async (logFile: BleDebugLogFile) => {
   return FileSystem.readAsStringAsync(logFile.uri);
 };
 
+export const deleteBleDebugLogFile = async (logFile: BleDebugLogFile) => {
+  await FileSystem.deleteAsync(logFile.uri, { idempotent: true });
+};
+
 const safeStringify = (value: unknown) => {
   const seen = new WeakSet();
 
