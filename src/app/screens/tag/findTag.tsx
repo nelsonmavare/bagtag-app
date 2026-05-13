@@ -218,32 +218,39 @@ export default function FindTagScreen() {
   };
 
   useEffect(() => {
+    let isMounted = true;
     setPeripherals(new Map());
-    try {
-      BleManager.start({ showAlert: false })
-        .then(() => console.debug("BleManager started."))
-        .catch((error: any) => console.error("BeManager could not be started.", error));
-    } catch (error) {
-      console.log("unexpected error starting BleManager.", error);
-      return;
-    }
 
     const listeners = [
+      bleManagerEmitter.addListener("BleManagerDidUpdateState", ({ state }) => {
+        console.debug("[BLE state]", state);
+      }),
       bleManagerEmitter.addListener("BleManagerDiscoverPeripheral", handleDiscoverPeripheral),
       bleManagerEmitter.addListener("BleManagerStopScan", handleStopScan),
     ];
-    const startScanning = async () => {
-      const permissionStatus = await requestPermissions();
-      if (permissionStatus) {
-        startScan();
+
+    const initializeAndStartScanning = async () => {
+      try {
+        await BleManager.start({ showAlert: false });
+        await BleManager.checkState();
+
+        if (!isMounted) {
+          return;
+        }
+
+        const permissionStatus = await requestPermissions();
+        if (permissionStatus) {
+          await startScan();
+        }
+      } catch (error) {
+        console.error("[BLE init] initialization failed", error);
       }
     };
 
-    startScanning().catch((error) => {
-      console.error(error);
-    });
+    initializeAndStartScanning();
 
     return () => {
+      isMounted = false;
       console.debug("[app] main component unmounting. Removing listeners...");
       for (const listener of listeners) {
         listener.remove();
