@@ -18,6 +18,8 @@ import {
 } from "@/src/debug/bleDeviceLogger";
 
 const { height, fontScale } = Dimensions.get("window");
+const MAX_BLE_LOG_VISIBLE_CHARS = 120_000;
+const MAX_BLE_LOG_COPY_CHARS = 500_000;
 
 const OptionButton = ({
   color = colors.primary,
@@ -55,6 +57,7 @@ export default function ConfigScreen() {
   const [companies, setCompanies] = useState<{ id: string; name: string | null }[]>([]);
   const [bleLogContent, setBleLogContent] = useState("");
   const [bleLogName, setBleLogName] = useState("");
+  const [bleLogWasTruncated, setBleLogWasTruncated] = useState(false);
   const [selectedBleLogFile, setSelectedBleLogFile] = useState<BleDebugLogFile | null>(null);
   const [showBleLogModal, setShowBleLogModal] = useState(false);
   const bleLogScrollRef = useRef<ScrollView | null>(null);
@@ -97,9 +100,15 @@ export default function ConfigScreen() {
 
   const showBleDebugLogFile = async (logFile: BleDebugLogFile) => {
     const content = await readBleDebugLogFile(logFile);
+    const shouldTruncate = content.length > MAX_BLE_LOG_VISIBLE_CHARS;
+    const visibleContent = shouldTruncate
+      ? `${content.slice(0, MAX_BLE_LOG_VISIBLE_CHARS)}\n\n[Contenido truncado para evitar bloqueos de UI]`
+      : content;
+
     setSelectedBleLogFile(logFile);
     setBleLogName(logFile.name);
-    setBleLogContent(content);
+    setBleLogWasTruncated(shouldTruncate);
+    setBleLogContent(visibleContent);
     setShowBleLogModal(true);
   };
 
@@ -120,6 +129,7 @@ export default function ConfigScreen() {
               setSelectedBleLogFile(null);
               setBleLogName("");
               setBleLogContent("");
+              setBleLogWasTruncated(false);
               Alert.alert("Logs BLE", "Archivo eliminado correctamente.");
             })
             .catch((error) => {
@@ -132,17 +142,39 @@ export default function ConfigScreen() {
   };
 
   const handleCopyBleLogContent = async () => {
-    if (!bleLogContent.trim()) {
-      Alert.alert("Logs BLE", "No hay contenido para copiar.");
-      return;
-    }
-
     try {
-      await Clipboard.setStringAsync(bleLogContent);
+      if (typeof Clipboard.setStringAsync !== "function") {
+        Alert.alert(
+          "Logs BLE",
+          "Esta versión no soporta copiado automático. Mantén presionado el texto para copiar manualmente.",
+        );
+        return;
+      }
+
+      const sourceContent = bleLogWasTruncated
+        ? selectedBleLogFile
+          ? await readBleDebugLogFile(selectedBleLogFile)
+          : bleLogContent
+        : bleLogContent;
+
+      if (!sourceContent.trim()) {
+        Alert.alert("Logs BLE", "No hay contenido para copiar.");
+        return;
+      }
+
+      const copyContent =
+        sourceContent.length > MAX_BLE_LOG_COPY_CHARS
+          ? `${sourceContent.slice(0, MAX_BLE_LOG_COPY_CHARS)}\n\n[Contenido truncado para copiar]`
+          : sourceContent;
+
+      await Clipboard.setStringAsync(copyContent);
       Alert.alert("Logs BLE", "Contenido copiado al portapapeles.");
     } catch (error) {
       console.error("[BLE debug] could not copy log content:", error);
-      Alert.alert("Logs BLE", "No se pudo copiar el contenido.");
+      Alert.alert(
+        "Logs BLE",
+        "No se pudo copiar el contenido automáticamente. Mantén presionado el texto para copiar manualmente.",
+      );
     }
   };
 
@@ -152,11 +184,6 @@ export default function ConfigScreen() {
 
       if (logFiles.length === 0) {
         Alert.alert("Logs BLE", "No hay archivos de debug BLE guardados todavía.");
-        return;
-      }
-
-      if (logFiles.length === 1) {
-        await showBleDebugLogFile(logFiles[0]);
         return;
       }
 
@@ -271,10 +298,16 @@ export default function ConfigScreen() {
         onRequestClose={() => {
           setShowBleLogModal(false);
           setSelectedBleLogFile(null);
+          setBleLogWasTruncated(false);
         }}
       >
         <View style={styles.logModalContainer}>
           <ThemedText style={styles.logModalTitle}>{bleLogName}</ThemedText>
+          {bleLogWasTruncated && (
+            <ThemedText style={styles.logModalWarning}>
+              El archivo es muy grande y se muestra una vista parcial para evitar bloqueos.
+            </ThemedText>
+          )}
           <ScrollView
             ref={bleLogScrollRef}
             style={styles.logContentContainer}
@@ -286,7 +319,9 @@ export default function ConfigScreen() {
             scrollIndicatorInsets={{ right: 2 }}
             keyboardShouldPersistTaps="handled"
           >
-            <ThemedText style={styles.logContentText}>{bleLogContent}</ThemedText>
+            <ThemedText selectable style={styles.logContentText}>
+              {bleLogContent}
+            </ThemedText>
           </ScrollView>
           <AppButton
             title="Copiar contenido"
@@ -303,6 +338,7 @@ export default function ConfigScreen() {
             onPress={() => {
               setShowBleLogModal(false);
               setSelectedBleLogFile(null);
+              setBleLogWasTruncated(false);
             }}
           />
         </View>
@@ -350,6 +386,11 @@ const styles = StyleSheet.create({
     fontSize: fontScale * 17,
     fontWeight: "bold",
     marginBottom: 12,
+  },
+  logModalWarning: {
+    color: colors.error,
+    marginBottom: 12,
+    fontSize: fontScale * 12,
   },
   logContentContainer: {
     flex: 1,

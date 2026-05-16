@@ -37,6 +37,75 @@ import { BleDeviceDebugLogger } from "@/src/debug/bleDeviceLogger";
 const { width, height } = Dimensions.get("window");
 const SECONDS_TO_SCAN_FOR = 10;
 
+const normalizeBleIdentifier = (value?: string | null) => {
+  if (!value) {
+    return "";
+  }
+
+  return value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+};
+
+const bytesToHex = (bytes: number[]) => {
+  return bytes
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
+};
+
+const extractManufacturerHex = (manufacturerData: unknown) => {
+  if (!manufacturerData) {
+    return "";
+  }
+
+  if (typeof manufacturerData === "string") {
+    return normalizeBleIdentifier(manufacturerData);
+  }
+
+  if (typeof manufacturerData === "object") {
+    const data = manufacturerData as { bytes?: unknown; data?: unknown };
+
+    if (Array.isArray(data.bytes)) {
+      const numericBytes = data.bytes.filter((value): value is number => typeof value === "number");
+      if (numericBytes.length > 0) {
+        return bytesToHex(numericBytes);
+      }
+    }
+
+    if (typeof data.data === "string") {
+      return normalizeBleIdentifier(data.data);
+    }
+  }
+
+  return "";
+};
+
+const getPeripheralIdentifiers = (peripheral: Peripheral) => {
+  const identifiers = new Set<string>();
+  const advertising = peripheral.advertising as { localName?: string; manufacturerData?: unknown } | undefined;
+
+  const normalizedId = normalizeBleIdentifier(peripheral.id);
+  if (normalizedId) {
+    identifiers.add(normalizedId);
+  }
+
+  const normalizedName = normalizeBleIdentifier(peripheral.name);
+  if (normalizedName) {
+    identifiers.add(normalizedName);
+  }
+
+  const normalizedLocalName = normalizeBleIdentifier(advertising?.localName);
+  if (normalizedLocalName) {
+    identifiers.add(normalizedLocalName);
+  }
+
+  const manufacturerHex = extractManufacturerHex(advertising?.manufacturerData);
+  if (manufacturerHex) {
+    identifiers.add(manufacturerHex);
+  }
+
+  return Array.from(identifiers);
+};
+
 export default function FindTagScreen() {
   const fetch = useFetch();
   const dispatch = useDispatch();
@@ -205,7 +274,21 @@ export default function FindTagScreen() {
       peripheral.name = "NO NAME";
     }
     setPeripherals((map) => {
-      return new Map(map.set(peripheral.id.replaceAll(":", ""), peripheral));
+      const nextMap = new Map(map);
+      const identifiers = getPeripheralIdentifiers(peripheral);
+
+      if (identifiers.length === 0) {
+        const fallbackIdentifier = normalizeBleIdentifier(peripheral.id);
+        if (fallbackIdentifier) {
+          nextMap.set(fallbackIdentifier, peripheral);
+        }
+      } else {
+        for (const identifier of identifiers) {
+          nextMap.set(identifier, peripheral);
+        }
+      }
+
+      return nextMap;
     });
   };
 
@@ -280,16 +363,29 @@ export default function FindTagScreen() {
         if (peripherals.size > 0) {
           const findedSerials: string[] = [];
           const discoveredPeripheralsBySerial = new Map<string, Peripheral>();
-          const device = peripherals.get(product?.serial as string);
+          const normalizedTargetSerial = normalizeBleIdentifier(product?.serial as string);
+          const uniquePeripherals = Array.from(
+            new Map(Array.from(peripherals.values()).map((peripheral) => [peripheral.id, peripheral])).values(),
+          );
 
-          peripherals.forEach((peripheral) => {
-            const serial = peripheral.id.replaceAll(":", "");
-            discoveredPeripheralsBySerial.set(serial, peripheral);
+          uniquePeripherals.forEach((peripheral) => {
+            const identifiers = getPeripheralIdentifiers(peripheral);
+            const fallbackIdentifier = normalizeBleIdentifier(peripheral.id);
+            const primaryIdentifier = identifiers[0] || fallbackIdentifier;
 
-            if (serial !== product.serial) {
-              findedSerials.push(serial);
+            for (const identifier of identifiers) {
+              discoveredPeripheralsBySerial.set(identifier, peripheral);
+            }
+
+            if (primaryIdentifier) {
+              discoveredPeripheralsBySerial.set(primaryIdentifier, peripheral);
+            }
+
+            if (primaryIdentifier && primaryIdentifier !== normalizedTargetSerial) {
+              findedSerials.push(primaryIdentifier);
             }
           });
+          const device = discoveredPeripheralsBySerial.get(normalizedTargetSerial);
 
           // TODO: This can be optimized moving the logic to the backend to check the products in the database and update the location of the products that are found.
           for await (const serial of findedSerials) {
@@ -301,7 +397,9 @@ export default function FindTagScreen() {
                   userName: product.nombre,
                 });
               }
-              const peripheral = discoveredPeripheralsBySerial.get(product.serial as string);
+              const peripheral = discoveredPeripheralsBySerial.get(
+                normalizeBleIdentifier(product.serial as string),
+              );
               if (peripheral) {
                 await onUpdateOtherProductLocation(product, peripheral);
               }
@@ -325,7 +423,7 @@ export default function FindTagScreen() {
             dispatch(setProduct(updatedProduct));
             await onProductFound(
               product,
-              discoveredPeripheralsBySerial.get(product.serial as string),
+              discoveredPeripheralsBySerial.get(normalizeBleIdentifier(product.serial as string)),
               longitude,
               latitude,
             );
