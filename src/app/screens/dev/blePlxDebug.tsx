@@ -38,6 +38,7 @@ export default function BlePlxDebugScreen() {
   const seenDevicesRef = useRef(new Set<string>());
   const [isScanning, setIsScanning] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
+  const [scanModeLabel, setScanModeLabel] = useState("N/A");
 
   const uniqueDevices = useMemo(() => seenDevicesRef.current.size, [logs]);
 
@@ -66,17 +67,17 @@ export default function BlePlxDebugScreen() {
     };
   }, []);
 
-  const stopScan = () => {
+  const stopScan = (reason = "stopped manually") => {
     managerRef.current?.stopDeviceScan();
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
     setIsScanning(false);
-    pushLog("[scan] stopped manually");
+    pushLog(`[scan] ${reason}`);
   };
 
-  const startScan = async () => {
+  const startScanWithOptions = async (allowDuplicates: boolean) => {
     const manager = managerRef.current;
     if (!manager) {
       pushLog("[scan] manager unavailable");
@@ -99,17 +100,23 @@ export default function BlePlxDebugScreen() {
     }
 
     seenDevicesRef.current.clear();
-    manager.stopDeviceScan();
+    stopScan("stopped previous scan before starting a new one");
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
 
     setIsScanning(true);
-    pushLog(`[scan] starting for ${SCAN_DURATION_MS / 1000}s`);
-    console.log("[ble-plx][scan][start]", { platform: Platform.OS, durationMs: SCAN_DURATION_MS });
+    const currentModeLabel = allowDuplicates ? "allowDuplicates=true" : "allowDuplicates=false";
+    setScanModeLabel(currentModeLabel);
+    pushLog(`[scan] starting for ${SCAN_DURATION_MS / 1000}s (${currentModeLabel})`);
+    console.log("[ble-plx][scan][start]", {
+      platform: Platform.OS,
+      durationMs: SCAN_DURATION_MS,
+      allowDuplicates,
+    });
 
-    manager.startDeviceScan(null, { allowDuplicates: true }, (error, device) => {
+    manager.startDeviceScan(null, { allowDuplicates }, (error, device) => {
       if (error) {
         pushLog(`[scan][error] ${error.errorCode} ${error.message}`);
         console.log("[ble-plx][scan][error]", error);
@@ -132,12 +139,24 @@ export default function BlePlxDebugScreen() {
     timerRef.current = setTimeout(() => {
       manager.stopDeviceScan();
       setIsScanning(false);
-      pushLog(`[scan] completed, unique devices=${seenDevicesRef.current.size}`);
+      pushLog(`[scan] completed (${currentModeLabel}), unique devices=${seenDevicesRef.current.size}`);
       console.log("[ble-plx][scan][summary]", {
         platform: Platform.OS,
+        allowDuplicates,
         uniqueDevices: seenDevicesRef.current.size,
       });
     }, SCAN_DURATION_MS);
+  };
+
+  const logManagerState = async () => {
+    const manager = managerRef.current;
+    if (!manager) {
+      pushLog("[state] manager unavailable");
+      return;
+    }
+    const state = await manager.state();
+    pushLog(`[state.current] ${state}`);
+    console.log("[ble-plx][state.current]", state);
   };
 
   const clearLogs = () => {
@@ -150,14 +169,27 @@ export default function BlePlxDebugScreen() {
       <AppBar title="BLE-PLX Debug" />
       <View style={styles.container}>
         <ThemedText style={styles.statusText}>
-          Estado: {isScanning ? "Escaneando" : "En espera"} | Unicos: {uniqueDevices}
+          Estado: {isScanning ? "Escaneando" : "En espera"} | Unicos: {uniqueDevices} | Modo:{" "}
+          {scanModeLabel}
         </ThemedText>
         <View style={styles.actions}>
-          <AppButton title="Iniciar scan (30s)" onPress={startScan} />
+          <AppButton title="Scan A (dup=true, 30s)" onPress={() => startScanWithOptions(true)} />
+          <AppButton
+            title="Scan B (dup=false, 30s)"
+            onPress={() => startScanWithOptions(false)}
+            style={{ backgroundColor: colors.secondary }}
+            labelStyle={{ color: colors.primary }}
+          />
           <AppButton
             title="Detener scan"
-            onPress={stopScan}
-            style={{ backgroundColor: colors.secondary }}
+            onPress={() => stopScan()}
+            style={{ backgroundColor: "#dbeff4" }}
+            labelStyle={{ color: colors.primary }}
+          />
+          <AppButton
+            title="Leer estado BLE"
+            onPress={logManagerState}
+            style={{ backgroundColor: "#dbeff4" }}
             labelStyle={{ color: colors.primary }}
           />
           <AppButton
