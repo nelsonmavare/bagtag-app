@@ -35,7 +35,7 @@ import useReport from "@/src/hooks/useReport";
 import { BleDeviceDebugLogger } from "@/src/debug/bleDeviceLogger";
 
 const { width, height } = Dimensions.get("window");
-const SECONDS_TO_SCAN_FOR = 10;
+const SECONDS_TO_SCAN_FOR = 30;
 
 const normalizeBleIdentifier = (value?: string | null) => {
   if (!value) {

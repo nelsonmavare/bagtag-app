@@ -268,6 +268,13 @@ export default function ConfigScreen() {
             prefix={"file-document-outline"}
           />
           <OptionButton
+            title="Diagnóstico BLE-PLX"
+            onPress={() => {
+              router.navigate("/screens/dev/blePlxDebug" as any);
+            }}
+            prefix={"bluetooth-searching"}
+          />
+          <OptionButton
             title="Soporte"
             onPress={() => {
               Linking.openURL('mailto:soporte@bagtag.com.ar');

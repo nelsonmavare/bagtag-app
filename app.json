@@ -19,6 +19,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.bagtag.bagtag",
       "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to connect to bluetooth devices",
+        "NSBluetoothPeripheralUsageDescription": "Allow $(PRODUCT_NAME) to use bluetooth",
         "NSLocationWhenInUseUsageDescription": "This app requires access to your location to scan for Bluetooth devices.",
         "ITSAppUsesNonExemptEncryption": false
       },
