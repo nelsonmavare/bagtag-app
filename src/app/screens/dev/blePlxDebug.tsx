@@ -36,6 +36,7 @@ export default function BlePlxDebugScreen() {
   const managerRef = useRef<BleManager | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seenDevicesRef = useRef(new Set<string>());
+  const callbackCountRef = useRef(0);
   const [isScanning, setIsScanning] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [scanModeLabel, setScanModeLabel] = useState("N/A");
@@ -100,6 +101,7 @@ export default function BlePlxDebugScreen() {
     }
 
     seenDevicesRef.current.clear();
+    callbackCountRef.current = 0;
     stopScan("stopped previous scan before starting a new one");
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -117,20 +119,44 @@ export default function BlePlxDebugScreen() {
     });
 
     manager.startDeviceScan(null, { allowDuplicates }, (error, device) => {
+      callbackCountRef.current += 1;
+      const callbackNumber = callbackCountRef.current;
+      console.log(device)
+
       if (error) {
-        pushLog(`[scan][error] ${error.errorCode} ${error.message}`);
-        console.log("[ble-plx][scan][error]", error);
+        pushLog(`[callback #${callbackNumber}][error] ${error.errorCode} ${error.message}`);
+        console.log("[ble-plx][callback][error]", { callbackNumber, error });
         return;
       }
 
-      if (!device?.id) {
+      if (!device) {
+        pushLog(`[callback #${callbackNumber}] device=null`);
+        console.log("[ble-plx][callback]", { callbackNumber, device: null });
+        return;
+      }
+
+      if (!device.id) {
+        pushLog(`[callback #${callbackNumber}] device without id: ${stringifySafe(formatDevice(device))}`);
+        console.log("[ble-plx][callback][device-without-id]", {
+          callbackNumber,
+          payload: formatDevice(device),
+        });
         return;
       }
 
       const firstSeen = !seenDevicesRef.current.has(device.id);
+      const payload = formatDevice(device);
+      pushLog(
+        `[callback #${callbackNumber}] id=${device.id} firstSeen=${firstSeen} rssi=${device.rssi ?? "N/A"} name=${device.name ?? "N/A"}`,
+      );
+      console.log("[ble-plx][callback][device]", {
+        callbackNumber,
+        firstSeen,
+        payload,
+      });
+
       if (firstSeen) {
         seenDevicesRef.current.add(device.id);
-        const payload = formatDevice(device);
         pushLog(`[device] ${stringifySafe(payload)}`);
         console.log("[ble-plx][device]", payload);
       }
@@ -143,6 +169,7 @@ export default function BlePlxDebugScreen() {
       console.log("[ble-plx][scan][summary]", {
         platform: Platform.OS,
         allowDuplicates,
+        callbackCount: callbackCountRef.current,
         uniqueDevices: seenDevicesRef.current.size,
       });
     }, SCAN_DURATION_MS);
