@@ -6,13 +6,12 @@ import { router } from "expo-router";
 import { colors } from "@/src/utils/colors";
 import { useState } from "react";
 import { appHorizontalPadding, appTopPadding } from "@/src/utils/constants";
-import { BackendAuth, authTransform } from "@/src/utils/transformers/auth";
+import { authTransform } from "@/src/utils/transformers/auth";
 import { useFetch } from "@/src/hooks/useFetch";
 import Toast from "react-native-toast-message";
 import { useDispatch } from "react-redux";
 import { setAuth } from "@/src/store/AuthSlice";
 import { ThemedView } from "@/src/components/ThemedView";
-import { environment } from "../../environments/environment";
 
 export default function LoginScreen() {
   const fetch = useFetch();
@@ -58,23 +57,26 @@ export default function LoginScreen() {
         },
         body: JSON.stringify(body),
       });
-      const responseData = await response.json();
+      const responsePayload = await response.json();
+      const responseData = responsePayload.data;
 
-      if (response.ok) {
-        if (responseData.estado === 200) {
-          const auth = authTransform(responseData.data);
-          Toast.show({
-            text1: "Inicio de sesión exitoso",
-            type: "success",
-          });
-          dispatch(setAuth(auth));
-          router.replace("/screens/tag/(tabs)");
-        } else {
-          Toast.show({
-            text1: "Correo electrónico o contraseña incorrectos",
-            type: "error",
-          });
-        }
+      if (!response.ok) {
+        throw new Error(responseData?.detalle ?? "No se pudo iniciar sesión. Intenta nuevamente.");
+      }
+
+      if (responseData.estado == 200) {
+        const auth = authTransform(responseData);
+        Toast.show({
+          text1: "Inicio de sesión exitoso",
+          type: "success",
+        });
+        dispatch(setAuth(auth));
+        router.replace("/screens/tag/(tabs)");
+      } else {
+        Toast.show({
+          text1: "Correo electrónico o contraseña incorrectos",
+          type: "error",
+        });
       }
     } catch (error: unknown) {
       const errorMessage = error as Error;
