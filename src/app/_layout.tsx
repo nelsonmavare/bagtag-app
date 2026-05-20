@@ -57,6 +57,7 @@ export default function RootLayout() {
         <Stack.Screen name="screens/tag/productLost" options={{ headerShown: false }} />
         <Stack.Screen name="screens/tag/productLocation" options={{ headerShown: false }} />
         <Stack.Screen name="screens/dev/blePlxDebug" options={{ headerShown: false }} />
+        <Stack.Screen name="screens/dev/bleManagerLocalTest" options={{ headerShown: false }} />
 
         <Stack.Screen
           name="index"

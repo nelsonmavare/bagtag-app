@@ -70,6 +70,14 @@ export default function Auth() {
             router.navigate("/screens/auth/register");
           }}
         />
+        <AppButton
+          title="Test BLE local"
+          onPress={() => {
+            router.navigate("/screens/dev/bleManagerLocalTest" as any);
+          }}
+          style={{ backgroundColor: "transparent", marginTop: 12 }}
+          labelStyle={{ color: colors.primary }}
+        />
         <ThemedText style={styles.version}>v{version}</ThemedText>
       </View>
     </LinearGradient>

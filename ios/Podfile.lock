@@ -13,6 +13,8 @@ PODS:
     - ExpoModulesCore
     - ZXingObjC/OneD
     - ZXingObjC/PDF417
+  - ExpoClipboard (6.0.3):
+    - ExpoModulesCore
   - ExpoFileSystem (17.0.1):
     - ExpoModulesCore
   - ExpoFont (12.0.10):
@@ -1031,9 +1033,9 @@ PODS:
   - React-Mapbuffer (0.74.5):
     - glog
     - React-debug
-  - react-native-ble-manager (11.6.0):
+  - react-native-ble-manager (11.5.6):
     - React-Core
-  - react-native-ble-plx (3.5.0):
+  - react-native-ble-plx (3.2.1):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1399,6 +1401,7 @@ DEPENDENCIES:
   - Expo (from `../node_modules/expo`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
   - ExpoCamera (from `../node_modules/expo-camera/ios`)
+  - ExpoClipboard (from `../node_modules/expo-clipboard/ios`)
   - ExpoFileSystem (from `../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo-font/ios`)
   - ExpoHead (from `../node_modules/expo-router/ios`)
@@ -1440,7 +1443,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - react-native-ble-manager (from `../node_modules/react-native-ble-manager`)
   - react-native-ble-plx (from `../node_modules/react-native-ble-plx`)
-  - react-native-google-maps (from `/Users/ariel/src/bagtag/original-source/app/node_modules/react-native-maps`)
+  - react-native-google-maps (from `/Users/Tincho/Desktop/workspace-milltech/bagtag-app/bagtag-app/node_modules/react-native-maps`)
   - react-native-maps (from `../node_modules/react-native-maps`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-skia (from `../node_modules/@shopify/react-native-skia`)"
@@ -1497,6 +1500,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-asset/ios"
   ExpoCamera:
     :path: "../node_modules/expo-camera/ios"
+  ExpoClipboard:
+    :path: "../node_modules/expo-clipboard/ios"
   ExpoFileSystem:
     :path: "../node_modules/expo-file-system/ios"
   ExpoFont:
@@ -1577,7 +1582,7 @@ EXTERNAL SOURCES:
   react-native-ble-plx:
     :path: "../node_modules/react-native-ble-plx"
   react-native-google-maps:
-    :path: "/Users/ariel/src/bagtag/original-source/app/node_modules/react-native-maps"
+    :path: "/Users/Tincho/Desktop/workspace-milltech/bagtag-app/bagtag-app/node_modules/react-native-maps"
   react-native-maps:
     :path: "../node_modules/react-native-maps"
   react-native-safe-area-context:
@@ -1651,6 +1656,7 @@ SPEC CHECKSUMS:
   Expo: ed0a748eb6be0efd2c3df7f6de3f3158a14464c9
   ExpoAsset: 286fee7ba711ce66bf20b315e68106b13b8629fc
   ExpoCamera: cf49d2d121a9f883be0f98dde15a2185a1dd42be
+  ExpoClipboard: 243e22ff4161bbffcd3d2db469ae860ddc1156be
   ExpoFileSystem: 2988caaf68b7cb706e36d382829d99811d9d76a5
   ExpoFont: 38dddf823e32740c2a9f37c926a33aeca736b5c4
   ExpoHead: 1a1b30c6c1d125e9b8a199ca305c16a1dc041624
@@ -1691,8 +1697,8 @@ SPEC CHECKSUMS:
   React-jsitracing: f8367edacc50bb3f9f056a5aeafb8cee5849fafb
   React-logger: 780b9ee9cec7d44eabc4093de90107c379078cb6
   React-Mapbuffer: f544f00b98dbdd8cbae96dd2bdb8b47f719976e0
-  react-native-ble-manager: 571291fa52520569a3c62d4b643f65b936add8e7
-  react-native-ble-plx: e5aa8ba581f674146ccb631a1f7f21fea5fdeb2c
+  react-native-ble-manager: 0a46a3e9258ab35bf20d2efcfa4f75931ecb3ca3
+  react-native-ble-plx: 6bf58dc54bd2695b3caeb746a934ce6c830dbce8
   react-native-google-maps: 992905591a0a9315b8e74faecadd72f039e41dda
   react-native-maps: deb2adbdf309b622f15055b72b8742054929c740
   react-native-safe-area-context: df9763c5de6fa38883028e243a0b60123acb8858
